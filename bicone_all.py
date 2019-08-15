@@ -1,3 +1,11 @@
+'''
+This is code from ~2016-2018.
+It is used to carry out an MCMC (emcee) in order to estimate the parameters of a biconical outflow.
+The input is the velocity and velocity error of the two components of a double-peaked profile.
+The output is the position of the walkers at various points in time.
+The parameters of the bicone are phi, the inclination, theta, the PA on the sky, r_t, the turnover radius
+for the velocity law, the half opening angle and the maximum velocity.
+'''
 #import pyfits                                                                                                                                                                                     
 import matplotlib as plt
 from pylab import *
