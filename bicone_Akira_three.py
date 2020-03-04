@@ -238,19 +238,20 @@ def bicone_construction(phi,theta,r_t, half_angle, vel_max):
     
     # planes at x=0, y=0, and z=0 to guide the eye
     xx, zz = np.meshgrid(range(-20,20), range(-20,20))
-    im = ax.scatter3D(x, y, z, c=vel_radial_top, cmap='RdBu_r')
-    
+    im = ax.scatter3D(x, y, z, c=vel_radial_top, cmap='Blues_r')
+    im2 = ax.scatter3D(x_2,y_2,z_2,c=vel_radial_bottom, cmap='Reds')
     # calculate corresponding z
     yy = [0 for x in xx]
     ax.plot_surface(xx, yy, zz, alpha=0.2)
-    ax.set_ylim([-20,0])
+    #ax.set_ylim([-20,0])
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    ax.view_init(azim=10)
+    ax.view_init(azim=0)
     plt.colorbar(im)
+    plt.colorbar(im2)
     plt.savefig('3D_diag.png')
-    STOP
+    
     
     # So the first half of all these merged arrays is the blueshifted side of the cone (above the plane of the sky)
     # and x_2, etc are the redshifted, or 'bottom' side of the cone.
@@ -275,6 +276,9 @@ def bicone_construction(phi,theta,r_t, half_angle, vel_max):
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
+    ax.plot_surface(xx, yy, zz, alpha=0.2)
+    ax.view_init(azim=10)
+    
     plt.savefig('3D_merged_plane.png')
     
     plt.clf()
@@ -285,6 +289,8 @@ def bicone_construction(phi,theta,r_t, half_angle, vel_max):
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
+    ax.plot_surface(xx, yy, zz, alpha=0.2)
+    ax.view_init(azim=10)
     plt.savefig('3D_merged.png')
     STOP
     
@@ -1311,7 +1317,7 @@ for z in range(len(names)):
         pixelscale_1 = pixelscale
         pixelscale_2 = pixelscale
         slitwidth = 0.75
-        result_s = 70, 55, 10, 40, 310
+        result_s = 45, 55, 10, 30, 310
         
         minus_one=1
         minus_pa_1 = 2
