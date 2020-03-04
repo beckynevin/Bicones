@@ -39,34 +39,43 @@ from mpl_toolkits.mplot3d import Axes3D
 # This code constructs a three dimensional bicone that will be fed into lnlike_bicone 
 # where it will be projected down to 2D
 def bicone_construction(phi,theta,r_t, half_angle, vel_max):
-
-
+    print('these are the input parameters',phi,theta,r_t, half_angle, vel_max)
+    # the five input parameters determine the geometry of the bicone,
+    # phi is the inclination, theta, is the position angle on the sky in 2D,
+    # r_t is the turnover radius, or point at which the material moving along
+    # the walls begins to decelerate,
+    # half_angle, is the half opening angle,
+    # and vel_max is the maximum intrinsic (meaning 3D) velocity along the walls
+    # of the cone.
+    
+    # The model only moves material along the walls of the cone, so it could
+    # be called an 'evacuated bicone'
+    
     half_angle_r=math.radians(half_angle)
+    phi_1=math.radians(phi)
+    theta_1=math.radians(theta)
+    psi_1=math.radians(0)
 
-   
+    # the total heigh is twice the effective radius because
+    # the velocity decays linearly from vmax to zero
     h=2*r_t
-    ##to get the radius of the cone, you need to do some trig
-    ##tan half_angle_r=r/h
-
+    # to get the radius of the cone, you need to do some trig
+    # this is the radius across the opening
     r=math.tan(half_angle_r)*h
     
-    theta_para=(np.asarray(np.linspace(0,2*np.pi,50)))
-    '''you dont want u1 to go all the way to -h unless that PA is totally aligned (PA90)'''
+    # this is your sampling around the cone, here I'm taking 50 points
+    theta_para=(np.asarray(np.linspace(0,2*np.pi,30)))
+    
+    # This is the sampling along the heigh of the cone
+    u1_orig=np.asarray(np.linspace(-h,0,10))+h#
+    u2_orig=-np.asarray(np.linspace(-h,0,10))-h
+    u=-np.asarray(np.linspace(-h,0,10))
 
-    u1_orig=np.asarray(np.linspace(-h,0,30))+h#was 50
-    u2_orig=-np.asarray(np.linspace(-h,0,30))-h
-    u=-np.asarray(np.linspace(-h,0,30))
+    
 
 
+    
 
-
-    phi_1=math.radians(phi)
-    #this is the angle of rotation about x, so inclination
-    theta_1=math.radians(theta)
-
-    #this is the angle of rotation about y, we don't actually need to rotate about this guy
-    psi_1=math.radians(0)
-    #this is the angle of rotation about z, so PA
     #R is the rotation matrix
     R=np.matrix([[np.cos(theta_1)*np.cos(psi_1),np.cos(phi_1)*np.sin(psi_1)+np.sin(phi_1)*np.sin(theta_1)*np.cos(psi_1),
                   np.sin(phi_1)*np.sin(psi_1)-np.cos(phi_1)*np.sin(theta_1)*np.cos(psi_1)],
@@ -81,12 +90,10 @@ def bicone_construction(phi,theta,r_t, half_angle, vel_max):
     y_2=[]
     z=[]
     z_2=[]
-    z_plane=[]
+    
     vel_radial_bottom=[]
     vel_radial_top=[]
-    vel_top=[]
-    vel_bottom=[]
-    vel_totes=[]
+    
     x_totes=[]
     y_totes=[]
     z_totes=[]
@@ -96,6 +103,13 @@ def bicone_construction(phi,theta,r_t, half_angle, vel_max):
     x_plane_2=[]
     y_plane_2=[]
     z_plane_2=[]
+    
+    from mpl_toolkits import mplot3d
+    plt.clf()
+    fig = plt.figure()
+    ax = plt.axes(projection='3d')
+    ax.scatter3D(0,0,0,marker='*', color='orange')
+    
     for i in range(len(theta_para)):
         for j in range(len(u)):
             if i==0:
@@ -113,16 +127,21 @@ def bicone_construction(phi,theta,r_t, half_angle, vel_max):
             #red cone below is Z_2
             Z_1=u2_orig[j]#was u2
             Z_2=u1_orig[j]#was u1
-
+            
+            
+            
             y_plane_into=0
 
             pos=np.matrix([X,Y,Z_1])
             pos_2=np.matrix([X,Y,Z_2])
             
+            # so the 'plane' positions are all at y=0, because they are projected
+            # onto the plane of the sky
             pos_plane=np.matrix([X,y_plane_into,Z_1])
             pos_plane_2=np.matrix([X,y_plane_into, Z_2])
             
-            
+            # take the dot product of the rotation matrix and the current position
+            # in order to move to the location on the cone
             new_pos=np.dot(R,pos.transpose())
             new_pos_2=np.dot(R,pos_2.transpose())
             new_pos_plane=np.dot(R,pos_plane.transpose())
@@ -138,56 +157,54 @@ def bicone_construction(phi,theta,r_t, half_angle, vel_max):
             
             #Z_2=u1[j]
             x.append(new_pos[0])
-            x_totes.append(new_pos[0])
             x_2.append(new_pos_2[0])
-            x_totes.append(new_pos_2[0])
             y.append(new_pos[1])
-            y_totes.append(new_pos[1])
             y_2.append(new_pos_2[1])
-            y_totes.append(new_pos_2[1])
             
             z.append(new_pos[2])
-            z_totes.append(new_pos[2])
             z_2.append(new_pos_2[2])
-            z_totes.append(new_pos_2[2])
             
+            
+            if np.sqrt(np.array(new_pos[0]).ravel()**2+np.array(new_pos[1]).ravel()**2+np.array(new_pos[2]).ravel()**2)<r_t:
+                # so if the point is at a distance less than the turnover radius, then the velocity is the max velocity
+                vel_max_top=-vel_max
+            if np.sqrt(np.array(new_pos[0]).ravel()**2+np.array(new_pos[1]).ravel()**2+np.array(new_pos[2]).ravel()**2)>r_t:
+                # if the point is greater than the turnover radius, then it will decline linearly to zero at 2*r_t
+                vel_max_top=-(vel_max-(vel_max/r_t)*(np.sqrt(np.array(new_pos[0]).ravel()**2+np.array(new_pos[1]).ravel()**2+np.array(new_pos[2]).ravel()**2)-r_t))
+                
+            if np.sqrt(np.array(new_pos[0]).ravel()**2+np.array(new_pos[1]).ravel()**2+np.array(new_pos[2]).ravel()**2)>2*r_t:
+                # if the point is farther than 2*r_t, then it is already at zero
+                vel_max_top=0
             #do that thing:
             #equation: d/dw/e((x^2 + y^2)/c^2 = (z-z_0)^2)
             #recall c=r/h
             #<2*x,2*y,-(2*r^2*z)/h^2>
             #plug in everything and normalize and then the z component is your v_rad
     
-            
-            slope_x=2*np.array(new_pos[0]).ravel()
-            slope_y=2*np.array(new_pos[1]).ravel()
-            slope_z=-(2*r**2*np.array(new_pos[2]).ravel())/h**2
+            # Time to project this velocity into a line of sight velocity
+            slope_x=np.array(new_pos[0]).ravel()#eliminated 2*
+            slope_y=np.array(new_pos[1]).ravel()# eliminated 2*
+            slope_z=np.array(new_pos[2]).ravel()#-(2*r**2*np.array(new_pos[2]).ravel())/h**2
             
             norm=np.sqrt(slope_x**2+slope_y**2+slope_z**2)
-            if np.sqrt(np.array(new_pos[0]).ravel()**2+np.array(new_pos[1]).ravel()**2+np.array(new_pos[2]).ravel()**2)<r_t:
-                
-            
-                #vel_max_top=-(vel_max/r_t)*np.sqrt(new_pos[0]**2+new_pos[1]**2+new_pos[2]**2)
-              
-                vel_max_top=-vel_max
-            if np.sqrt(np.array(new_pos[0]).ravel()**2+np.array(new_pos[1]).ravel()**2+np.array(new_pos[2]).ravel()**2)>r_t:
-                vel_max_top=-(vel_max-(vel_max/r_t)*(np.sqrt(np.array(new_pos[0]).ravel()**2+np.array(new_pos[1]).ravel()**2+np.array(new_pos[2]).ravel()**2)-r_t))
-                #vel_max_top=vel_max
-                #if new_pos[1]>0:
-                #    vel_max_top=-vel_max_top
-            if np.sqrt(np.array(new_pos[0]).ravel()**2+np.array(new_pos[1]).ravel()**2+np.array(new_pos[2]).ravel()**2)>2*r_t:
-                vel_max_top=0
-                #if new_pos[1]>0:
-            #if abs(vel_max_top)>1001:
-            #    vel_max_top==0
             A_comp=-(slope_y/norm)
-            vel_top.append(vel_max_top)
+            ax.plot3D([slope_x,0],[slope_y,0],[slope_z,0])
             
+            
+            # multiply the intrinsic velocity by the component of A that is in the y direction
+            # y, which is the line of sight direction
+            # currently, the velocity is projected along the wall of the bicone
             rad_proj=vel_max_top*np.array(A_comp).ravel()
             
+            
+            #print('position', new_pos)
+            #print('total length to x,y,z = 0', norm, 'y cont', slope_y)
+            #print('velocity at this point', vel_max_top)
+            #print('component', *np.array(A_comp).ravel())
+            #print('projected vel', rad_proj)
+            
             vel_radial_top.append(round(rad_proj[0]))
-            vel_totes.append(round(rad_proj[0]))
-    
-    
+            
             slope_x=2*np.array(new_pos_2[0]).ravel()
             slope_y=2*np.array(new_pos_2[1]).ravel()
             
@@ -215,15 +232,28 @@ def bicone_construction(phi,theta,r_t, half_angle, vel_max):
             A_comp=-(slope_y/norm)
             
             
-            vel_bottom.append(vel_max_bottom)
+            
             rad_proj_2=np.array(A_comp).ravel()*vel_max_bottom
-            vel_totes.append(round(rad_proj_2[0]))
-            
-            
-            
-            
             vel_radial_bottom.append(round(rad_proj_2[0]))
-         
+    
+    # planes at x=0, y=0, and z=0 to guide the eye
+    xx, zz = np.meshgrid(range(-20,20), range(-20,20))
+    im = ax.scatter3D(x, y, z, c=vel_radial_top, cmap='RdBu_r')
+    
+    # calculate corresponding z
+    yy = [0 for x in xx]
+    ax.plot_surface(xx, yy, zz, alpha=0.2)
+    ax.set_ylim([-20,0])
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.view_init(azim=10)
+    plt.colorbar(im)
+    plt.savefig('3D_diag.png')
+    STOP
+    
+    # So the first half of all these merged arrays is the blueshifted side of the cone (above the plane of the sky)
+    # and x_2, etc are the redshifted, or 'bottom' side of the cone.
     merged_x=x+x_2
     merged_y=y+y_2
     merged_z=z+z_2
@@ -235,9 +265,29 @@ def bicone_construction(phi,theta,r_t, half_angle, vel_max):
     
     
     merged_vel=vel_radial_top+vel_radial_bottom
-    merged_vel=vel_radial_top+vel_radial_bottom
-
-
+    
+    
+    plt.clf()
+    fig = plt.figure()
+    ax = plt.axes(projection='3d')
+    im = ax.scatter3D(merged_x_plane, merged_y_plane, merged_z_plane, c=merged_vel, cmap='RdBu_r')
+    plt.colorbar(im)
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    plt.savefig('3D_merged_plane.png')
+    
+    plt.clf()
+    fig = plt.figure()
+    ax = plt.axes(projection='3d')
+    im = ax.scatter3D(merged_x, merged_y, merged_z, c=merged_vel, cmap='RdBu_r')
+    plt.colorbar(im)
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    plt.savefig('3D_merged.png')
+    STOP
+    
     return merged_x, merged_y, merged_z, merged_vel, merged_x_plane, merged_y_plane, merged_z_plane
                 
     
@@ -1261,7 +1311,7 @@ for z in range(len(names)):
         pixelscale_1 = pixelscale
         pixelscale_2 = pixelscale
         slitwidth = 0.75
-        result_s = -30, 20, 4, 30, 300
+        result_s = 70, 55, 10, 40, 310
         
         minus_one=1
         minus_pa_1 = 2
@@ -1570,7 +1620,7 @@ for z in range(len(names)):
 
     # At this point, we have prepared the data
     # Try just plotting this against the model
-    result_s = 90, 30, 10, 20, 100
+    
     input = result_s
     xs_model, ys_model, xs_model_ortho, ys_model_ortho = diagnostic_bicone_plot(input, xs_data_concat, xs_data_concat_ortho)
     print(np.shape(xs_model))
@@ -1617,6 +1667,9 @@ for z in range(len(names)):
     	lnlike_bicone_three_slits(result_s, PA1, PA2, PA3, pixelscale_1, slitwidth)
     except NameError:
     	lnlike_bicone_three_slits(result_s, PA1, PA2, 888, pixelscale_1, slitwidth)
+     
+     
+    STOP
     lnlike_bicone(result_s)
     
     end=datetime.datetime.now()
