@@ -5,6 +5,7 @@
 # The output is the position of the walkers at various points in time.
 # The parameters of the bicone are phi, the inclination, theta, the PA on the sky, r_t, the turnover radius
 # for the velocity law, the half opening angle and the maximum velocity.
+# I've rewritten it to more generally apply to any grid you place over it.
 # ~~~~~~~~~~~~~~~~~~~~~~~~~
                                                                                                                                                                                      
 import matplotlib as plt
@@ -292,7 +293,8 @@ def bicone_construction(phi,theta,r_t, half_angle, vel_max):
     ax.plot_surface(xx, yy, zz, alpha=0.2)
     ax.view_init(azim=10)
     plt.savefig('3D_merged.png')
-    STOP
+    
+    
     
     return merged_x, merged_y, merged_z, merged_vel, merged_x_plane, merged_y_plane, merged_z_plane
                 
@@ -773,7 +775,7 @@ def diagnostic_bicone_plot(z, xs_data_concat, xs_data_concat_ortho):
     
     
 
-def lnlike_bicone_three_slits(z, PA1, PA2, PA3, pixelscale_1, slitwidth):
+def lnlike_bicone_three_slits(z, PA1, PA2, PA3, pixelscale_1, slitwidth, spatial_resolution):
 
 
     #bicone_construction(h,phi,theta,r_t, half_angle )
@@ -807,6 +809,14 @@ def lnlike_bicone_three_slits(z, PA1, PA2, PA3, pixelscale_1, slitwidth):
     plt.colorbar()
     plt.savefig('3D_cone_plane.png')
     
+    plt.clf()
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    im = ax.scatter(merged_x, merged_y, c=merged_vel, cmap='RdBu_r')
+    plt.colorbar(im)
+    
+    
+    
     
     #%```````````````````````````````````
     #I'm going to make the phi cuts according to observe PAs
@@ -814,31 +824,55 @@ def lnlike_bicone_three_slits(z, PA1, PA2, PA3, pixelscale_1, slitwidth):
     PA_obs_2=np.radians(PA2+90)
     PA_obs_3=np.radians(PA3+90)
 
-    x_slit=np.linspace(-100*h,100*h, len(merged_x))
+    print('PA1', PA1+90)
 
-    len_pts=max(upper_lim-lower_lim,upper_lim_ortho-lower_lim_ortho)
+    #x_slit=np.linspace(-100*h,100*h, len(merged_x))
+
+    #len_pts=max(upper_lim-lower_lim,upper_lim_ortho-lower_lim_ortho)
 
     #height is based upon the length of the overall data we have on the bicone and the slitwidth
     height=slitwidth/pixelscale_1#
-
+    # so this part is a bit tricky because we're defining a PA of 0 to be straight up
+    # so add 90 to everything above, and then move one half a slitwidth above and below
+    # the centerline of each slit to capture light
+    # so the equation of a line would normally be mx + b = rise/run*x + b = arctan(angle)*x+b
+    # but in our case, we are adding 90 degrees, so this is equivalent to tan(angle)*x
+    # and then instead of dividing the height by np.sin(PA1), you divide by np.cos(PA1) because
+    # we have moved 90' around the unit circle!
+    
+    # if the PA1 is lt 90, then swith the order of the two slits (upper and lower)
     if PA1 < 90:
-        z_slit_1_upper=[x*np.tan(PA_obs_1)-height/np.cos(PA_obs_1) for x in merged_x]
-        z_slit_1_lower=[x*np.tan(PA_obs_1)+height/np.cos(PA_obs_1) for x in merged_x]
+        z_slit_1_upper=[x*np.tan(PA_obs_1)-0.5*height/np.cos(PA_obs_1) for x in merged_x]
+        z_slit_1_lower=[x*np.tan(PA_obs_1)+0.5*height/np.cos(PA_obs_1) for x in merged_x]
+        z_slit_center = [x*np.tan(PA_obs_1) for x in merged_x]
         
     else:
-        z_slit_1_upper=[x*np.tan(PA_obs_1)+height/np.cos(PA_obs_1) for x in merged_x]
-        z_slit_1_lower=[x*np.tan(PA_obs_1)-height/np.cos(PA_obs_1) for x in merged_x]
-        
+        z_slit_1_upper=[x*np.tan(PA_obs_1)+0.5*height/np.cos(PA_obs_1) for x in merged_x]
+        z_slit_1_lower=[x*np.tan(PA_obs_1)-0.5*height/np.cos(PA_obs_1) for x in merged_x]
+    
+    
+    
     height=slitwidth/pixelscale_2  
     if PA2 > 90:
-        z_slit_2_upper=[x*np.tan(PA_obs_2)+height/np.cos(PA_obs_2) for x in merged_x]
-        z_slit_2_lower=[x*np.tan(PA_obs_2)-height/np.cos(PA_obs_2) for x in merged_x]
+        z_slit_2_upper=[x*np.tan(PA_obs_2)+0.5*height/np.cos(PA_obs_2) for x in merged_x]
+        z_slit_2_lower=[x*np.tan(PA_obs_2)-0.5*height/np.cos(PA_obs_2) for x in merged_x]
         
     else: 
-        z_slit_2_upper=[x*np.tan(PA_obs_2)-height/np.cos(PA_obs_2) for x in merged_x]
-        z_slit_2_lower=[x*np.tan(PA_obs_2)+height/np.cos(PA_obs_2) for x in merged_x]
+        z_slit_2_upper=[x*np.tan(PA_obs_2)-0.5*height/np.cos(PA_obs_2) for x in merged_x]
+        z_slit_2_lower=[x*np.tan(PA_obs_2)+0.5*height/np.cos(PA_obs_2) for x in merged_x]
         
-   
+    ax.plot(merged_x, z_slit_1_upper, color='k')
+    ax.plot(merged_x, z_slit_1_lower, color='k')
+    ax.plot(merged_x, z_slit_center, color='k', ls='--')
+    ax.plot(merged_x, z_slit_2_upper, color='k')
+    ax.plot(merged_x, z_slit_2_lower, color='k')
+    ax.set_aspect(aspect=1)
+    ax.set_xlim([-20,20])
+    ax.set_ylim([-20,20])
+    ax.set_xlabel('Pixels')
+    
+    
+    
 
     if PA1<90:
         inds_1=np.logical_and(np.logical_and((np.asarray(merged_z) > np.asarray(z_slit_1_lower)), (np.asarray(merged_z) < np.asarray(z_slit_1_upper))), (np.asarray(merged_y) < np.asarray(merged_y_plane)))
@@ -876,7 +910,86 @@ def lnlike_bicone_three_slits(z, PA1, PA2, PA3, pixelscale_1, slitwidth):
     vel_cont_2_below=np.asarray(merged_vel)[np.asarray(inds_2_below)]
 
     
+    # Now you're going to need to step up each slit by
+    # units of the resolution, starting in the center at zero zero and moving outward in either direction
     
+    print('spatial res', spatial_resolution)
+    print('spatial res in pix', spatial_resolution/pixelscale_1)
+    
+    
+    if PA1 < 90:
+        additive=np.pi/2
+    else:
+        additive=np.pi/2
+        
+    # Okay so make a list of coordinates that define each slit center
+    # and then for each one define the four corners
+    width = spatial_resolution/pixelscale_1
+    slit_center_above = [(width*j*(1/np.sin(PA_obs_1)),width*j*(1/np.cos(PA_obs_1))) for j in range(20-lower_lim)]
+    x_center_slit_1_above = [x[0] for x in slit_center_above]
+    y_center_slit_1_above = [x[1] for x in slit_center_above]
+    
+    slit_center_below = [(-width*j*(1/np.sin(PA_obs_1)),-width*j*(1/np.cos(PA_obs_1))) for j in range(upper_lim-20)]
+    x_center_slit_1_below = [x[0] for x in slit_center_below]
+    y_center_slit_1_below = [x[1] for x in slit_center_below]
+    
+    x_slit_1_center = x_center_slit_1_above + x_center_slit_1_below
+    y_slit_1_center = y_center_slit_1_above + y_center_slit_1_below
+    ax.scatter(x_slit_1_center, y_slit_1_center, edgecolor='black', color='pink')
+    
+    
+    
+    # Okay so the next step is to find the edges of this rectangle
+    corner_1_x = [(x + 0.5*height) for x in x_slit_1_center]
+    corner_1_y = [(y - 0.5*width) for y in y_slit_1_center]
+    plt.scatter(corner_1_x, corner_1_y, marker='*', color='red')
+    
+    
+    import math
+
+    def rotate(origin, point, angle):
+        """
+        Rotate a point counterclockwise by a given angle around a given origin.
+
+        The angle should be given in radians.
+        """
+        ox, oy = origin
+        px, py = point
+
+        qx = ox + math.cos(angle) * (px - ox) - math.sin(angle) * (py - oy)
+        qy = oy + math.sin(angle) * (px - ox) + math.cos(angle) * (py - oy)
+        return qx, qy
+    
+    
+    x_tester, y_tester = rotate((0,0),(0.5*height,width),PA_obs_1-np.pi/2)#np.radians(40))
+    
+    
+    # okay so to form the triangle you have to rotate the points about the 'origin', which is the slit center
+    corners = [(0.5*height, width),(0.5*height,-width),(-0.5*height, width), (-0.5*height,-width)]
+    
+    
+    
+    corners_rotated_x = [0 + np.cos(PA_obs_1-np.pi/2)*(x[0]-0) - np.sin(PA_obs_1-np.pi/2)*(x[1] - 0) for x in corners]
+    corners_rotated = [(0 + np.cos(PA_obs_1-np.pi/2)*(x[0]-0) - np.sin(PA_obs_1-np.pi/2)*(x[1] - 0),0 + np.sin(PA_obs_1-np.pi/2)*(x[0]-0)+np.cos(PA_obs_1-np.pi/2)*(x[1]-0)) for x in corners]
+    corners_rotated_y = [0 + np.sin(PA_obs_1-np.pi/2)*(x[0]-0)+np.cos(PA_obs_1-np.pi/2)*(x[1]-0) for x in corners]
+    plt.scatter(corners_rotated_x,corners_rotated_y, marker='*', color='white', edgecolor='black', s=120, zorder=100)
+    
+    z_1_perp_lower=[-x*(1/np.tan(PA_obs_1))-(width)/np.cos(PA_obs_1+additive) for x in xs_cont_1]
+    z_1_perp_upper=[-x*(1/np.tan(PA_obs_1))+(width)/np.cos(PA_obs_1+additive) for x in xs_cont_1]
+    plt.plot(xs_cont_1, z_1_perp_upper, color='red')
+    plt.plot(xs_cont_1, z_1_perp_lower, color='red')
+    print(np.shape(corners_rotated))
+    print([corners_rotated_x, corners_rotated_y])
+    print([merged_x, merged_y])
+    # Okay now try to use these bin edges to do a statistic!
+    from scipy import stats
+    vel_mean = stats.binned_statistic_dd([merged_x, merged_y], values = merged_vel,statistic = 'mean', bins=[corners_rotated_x, corners_rotated_y])
+    #plt.plot(list(xs_cont_1).append(xs_cont_1), z_1_perp_lower+z_1_perp_upper)
+    im3 = plt.scatter(0,0,c=vel_mean, cmap='rainbow')
+    plt.colorbar()
+    plt.savefig('2D_projection.png')
+    
+    STOP
 
     plt.clf()
     plt.scatter(xs_cont_1, ys_cont_1, c=vel_cont_1)
@@ -1309,6 +1422,7 @@ for z in range(len(names)):
         PA_2 = 'akira_slit2_input.txt'
         PA1 = 40
         PA2 = 110
+        PA3 = PA1
         lower_lim= 0
         upper_lim = 40
         lower_lim_ortho = 0
@@ -1321,6 +1435,8 @@ for z in range(len(names)):
         
         minus_one=1
         minus_pa_1 = 2
+        
+        spatial_resolution = 0.4626
     
     
 
@@ -1670,7 +1786,7 @@ for z in range(len(names)):
     #def lnlike_bicone_three_slits(z, PA1, PA2, PA3, pixelscale_1, slitwidth):
 
     try:
-    	lnlike_bicone_three_slits(result_s, PA1, PA2, PA3, pixelscale_1, slitwidth)
+    	lnlike_bicone_three_slits(result_s, PA1, PA2, PA3, pixelscale_1, slitwidth, spatial_resolution)
     except NameError:
     	lnlike_bicone_three_slits(result_s, PA1, PA2, 888, pixelscale_1, slitwidth)
      
@@ -1766,138 +1882,4 @@ for z in range(len(names)):
     print('mean variables', mean_0, mean_1, mean_2, mean_3, mean_4)
     
 
-    STOP
-
-    for i in range(len(f_acc_pre)):
-        n.write(str(f_acc_pre[i])+'\n')
-    n.close()
-    sampler.reset()
-
-    def lnprior(z):
-        phi_array, theta_array, r_t, half_angle,half_angle_2, vel_max_array=z
-        if 0 < phi_array < 90 and 0.0 < theta_array < 359.9 and 0 < r_t < 10 and 0 < half_angle < 90 and half_angle < half_angle_2 < 90 and 100 < vel_max_array < 1000:
-            return 0.0
-        return -np.inf
-    #you also need the log likelihood function:                                                                                                                                                             
-    #we already have a log likelihood function                                                                                                                                                              
-    def lnprob(z):
-        lp=lnprior(z)
-        if not np.isfinite(lp):
-            return -np.inf
-        return lp + lnlike_cocone(z)
-    ndim, nwalkers=6,100
-    result=45,18.6,2,63.36,72,420
-    mult=10,20,1,10,10,100
-
-    #pos is the starting position for the walkers                                                                                                                                                           
-    pos=[result+mult*np.random.randn(ndim) for i in range(nwalkers)]
-    #print('pos', pos)                                                                                                                                                                                      
-
-    import emcee
-    start=datetime.datetime.now()
-    #count=0                                                                                                                                                                                                
-    sampler=emcee.EnsembleSampler(nwalkers, ndim, lnprob,a=2, threads=48)
-    #sampler=emcee.EnsembleSampler(nwalkers, ndim, lnprob,a=1.75, threads=48)
-    print('You finished the prep for burn in')
-    pos, prob, state = sampler.run_mcmc(pos,200)#, storechain=True)
-    end=datetime.datetime.now()
-    samples_pre=sampler.chain[:,:,:]
-    f_acc_pre=sampler.acceptance_fraction
-    #autocorr_pre=sampler.acor
-    print('f_acc burn in', f_acc_pre)
-    #print('autocorr for burn in', autocorr_pre)
-    print('pos after burn in', pos)
-    g=open(str(name)+"/cocone/emcee_burn_0_c.txt","w")
-    h=open(str(name)+"/cocone/emcee_burn_1_c.txt","w")
-    k=open(str(name)+"/cocone/emcee_burn_2_c.txt","w")
-    l=open(str(name)+"/cocone/emcee_burn_3_c.txt","w")
-    m=open(str(name)+"/cocone/emcee_burn_4_c.txt","w")
-    o=open(str(name)+"/cocone/emcee_burn_5_c.txt","w")
-    n=open(str(name)+"/cocone/emcee_burn_f_acc_c.txt","w")
-    for i in range(nwalkers):
-        for j in range(200):
-            g.write(str(samples_pre[i][j][0])+'\n')
-            h.write(str(samples_pre[i][j][1])+'\n')
-            k.write(str(samples_pre[i][j][2])+'\n')
-            l.write(str(samples_pre[i][j][3])+'\n')
-            m.write(str(samples_pre[i][j][4])+'\n')
-            o.write(str(samples_pre[i][j][5])+'\n')
-    #       #n.write(str(f_acc_pre[i][j])+'\n')                                                                                                                                                             
-    g.close()
-    h.close()
-    k.close()
-    l.close()
-    m.close()
-    o.close()
-
-    for i in range(len(f_acc_pre)):
-        n.write(str(f_acc_pre[i])+'\n')
-    n.close()
-    sampler.reset()
-
-
-    def lnprior(z):
-        phi_array, theta_array, r_t, half_angle,half_angle_2, vel_max_array=z
-        if 0 < phi_array < 90 and 0.0 < theta_array < 359.9 and 0 < r_t < 10 and 0 < half_angle < 90 and half_angle < half_angle_2 < 90 and 100 < vel_max_array < 1000:
-            return 0.0
-        return -np.inf
-    #you also need the log likelihood function:                                                                                                                                                             
-    #we already have a log likelihood function                                                                                                                                                              
-    def lnprob(z):
-        lp=lnprior(z)
-        if not np.isfinite(lp):
-            return -np.inf
-        return lp + lnlike_nesting(z)
-    ndim, nwalkers=6,10# was 100
-    result=45,18.6,2,63.36,72,420
-    mult=10,20,1,10,10,100
-
-    #pos is the starting position for the walkers                                                                                                                                                           
-    pos=[result+mult*np.random.randn(ndim) for i in range(nwalkers)]
-    #print('pos', pos)                                                                                                                                                                                      
-
-    import emcee
-    start=datetime.datetime.now()
-    #count=0                                                                                                                                                                                                
-    sampler=emcee.EnsembleSampler(nwalkers, ndim, lnprob,a=2, threads=48)
-    #sampler=emcee.EnsembleSampler(nwalkers, ndim, lnprob,a=1.75, threads=48)
-    print('You finished the prep for burn in')
-    pos, prob, state = sampler.run_mcmc(pos,20,progress=True)#was 200 steps
-    end=datetime.datetime.now()
-    samples_pre=sampler.chain[:,:,:]
-    f_acc_pre=sampler.acceptance_fraction
-    #autocorr_pre=sampler.acor
-    print('f_acc burn in', f_acc_pre)
-    #print('autocorr for burn in', autocorr_pre)
-    print('pos after burn in', pos)
-    g=open(str(name)+"/nesting/emcee_burn_0_c.txt","w")
-    h=open(str(name)+"/nesting/emcee_burn_1_c.txt","w")
-    k=open(str(name)+"/nesting/emcee_burn_2_c.txt","w")
-    l=open(str(name)+"/nesting/emcee_burn_3_c.txt","w")
-    m=open(str(name)+"/nesting/emcee_burn_4_c.txt","w")
-    o=open(str(name)+"/nesting/emcee_burn_5_c.txt","w")
-    n=open(str(name)+"/nesting/emcee_burn_f_acc_c.txt","w")
-    for i in range(nwalkers):
-        for j in range(200):
-            g.write(str(samples_pre[i][j][0])+'\n')
-            h.write(str(samples_pre[i][j][1])+'\n')
-            k.write(str(samples_pre[i][j][2])+'\n')
-            l.write(str(samples_pre[i][j][3])+'\n')
-            m.write(str(samples_pre[i][j][4])+'\n')
-            o.write(str(samples_pre[i][j][5])+'\n')
-    #       #n.write(str(f_acc_pre[i][j])+'\n')                                                                                                                                                             
-    g.close()
-    h.close()
-    k.close()
-    l.close()
-    m.close()
-    o.close()
-
-    for i in range(len(f_acc_pre)):
-        n.write(str(f_acc_pre[i])+'\n')
-    n.close()
-    sampler.reset()
-
-    print('done with burnin')
-
-
+    
