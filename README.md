@@ -7,5 +7,8 @@ The product is posterior distributions around the five input parameters.
 Here is an example of the input data, which is the centroids of two Gaussians for two different longslit PAs in this example:
 <img src="data.png" width=1000 class="center">
 
+Here is an example of a model bicone with overplotted longslit positions of the data:
+<img src="overplot_data_model.png" width=1000 class="center">
+
 Here is an example of the output model plotted against this data with the best fit lnlike value:
 <img src="data_model.png" width=1000 class="center">
