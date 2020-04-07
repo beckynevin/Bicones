@@ -12,3 +12,6 @@ Here is an example of a model bicone with overplotted longslit positions of the 
 
 Here is an example of the output model plotted against this data with the best fit lnlike value:
 <img src="data_model.png" width=1000 class="center">
+
+And here is an example of the best fit parameters in corner plot form:
+<img src="corner_plot.png" width=1000 class="center">
